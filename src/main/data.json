@@ -1,0 +1,50 @@
+{
+  "servers": [
+    {
+      "id": 1,
+      "vcpus": 8,
+      "ram": 32,
+      "disk": 200
+    },
+    {
+      "id": 2,
+      "vcpus": 16,
+      "ram": 64,
+      "disk": 500
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "requiredVCPUs": 2,
+      "requiredRam": 4,
+      "requiredDisk": 10,
+      "dependencyType": "INDEPENDENT",
+      "dependsOnTaskIds": []
+    },
+    {
+      "id": 2,
+      "requiredVCPUs": 4,
+      "requiredRam": 8,
+      "requiredDisk": 15,
+      "dependencyType": "SEQUENTIAL",
+      "dependsOnTaskIds": [1]
+    },
+    {
+      "id": 3,
+      "requiredVCPUs": 8,
+      "requiredRam": 16,
+      "requiredDisk": 50,
+      "dependencyType": "PARALLEL",
+      "dependsOnTaskIds": [1]
+    },
+    {
+      "id": 4,
+      "requiredVCPUs": 4,
+      "requiredRam": 8,
+      "requiredDisk": 10,
+      "dependencyType": "SEQUENTIAL",
+      "dependsOnTaskIds": [2]
+    }
+  ]
+}

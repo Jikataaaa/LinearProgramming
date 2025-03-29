@@ -1,0 +1,58 @@
+{
+  "servers": [
+    {
+      "id": 1,
+      "vcpus": 8,
+      "ram": 32,
+      "disk": 200
+    },
+    {
+      "id": 2,
+      "vcpus": 8,
+      "ram": 32,
+      "disk": 200
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "requiredVCPUs": 4,
+      "requiredRam": 8,
+      "requiredDisk": 15,
+      "dependencyType": "INDEPENDENT",
+      "dependsOnTaskIds": []
+    },
+    {
+      "id": 2,
+      "requiredVCPUs": 2,
+      "requiredRam": 4,
+      "requiredDisk": 10,
+      "dependencyType": "INDEPENDENT",
+      "dependsOnTaskIds": []
+    },
+    {
+      "id": 3,
+      "requiredVCPUs": 2,
+      "requiredRam": 4,
+      "requiredDisk": 5,
+      "dependencyType": "INDEPENDENT",
+      "dependsOnTaskIds": []
+    },
+    {
+      "id": 4,
+      "requiredVCPUs": 3,
+      "requiredRam": 6,
+      "requiredDisk": 12,
+      "dependencyType": "INDEPENDENT",
+      "dependsOnTaskIds": []
+    },
+    {
+      "id": 5,
+      "requiredVCPUs": 4,
+      "requiredRam": 8,
+      "requiredDisk": 20,
+      "dependencyType": "INDEPENDENT",
+      "dependsOnTaskIds": []
+    }
+  ]
+}

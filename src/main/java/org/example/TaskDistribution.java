@@ -1,66 +1,32 @@
 package org.example;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.ortools.Loader;
 import com.google.ortools.linearsolver.MPConstraint;
 import com.google.ortools.linearsolver.MPObjective;
 import com.google.ortools.linearsolver.MPSolver;
 import com.google.ortools.linearsolver.MPVariable;
 
-import java.util.Scanner;
+import java.io.File;
+import java.io.IOException;
 
 public class TaskDistribution {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Loader.loadNativeLibraries();
 
-        Scanner scanner = new Scanner(System.in);
+        ObjectMapper mapper = new ObjectMapper();
+        Data data = mapper.readValue(new File("src/main/data2.json"), Data.class); // insert here the path to data file
 
-        System.out.print("Въведете броя на сървърите: ");
-        int numServers = scanner.nextInt();
-
-        // Дефиниране на сървърите
-        int[] serverCPUs = new int[numServers];
-        int[] serverRAM = new int[numServers];
-        int[] serverDisk = new int[numServers];
-
-        for (int i = 0; i < numServers; i++) {
-            System.out.println("Сървър " + (i + 1));
-            System.out.print("Въведете броя на CPU ядрата: ");
-            serverCPUs[i] = scanner.nextInt();
-            System.out.print("Въведете капацитета на RAM (GB): ");
-            serverRAM[i] = scanner.nextInt();
-            System.out.print("Въведете капацитета на диска (GB): ");
-            serverDisk[i] = scanner.nextInt();
-        }
-
-        System.out.print("Въведете броя на задачите: ");
-        int numTasks = scanner.nextInt();
-
-        // Дефиниране на задачите
-        int[] taskCPUs = new int[numTasks];
-        int[] taskRAM = new int[numTasks];
-        int[] taskDisk = new int[numTasks];
-        int[] taskDependencies = new int[numTasks];
-
-        for (int i = 0; i < numTasks; i++) {
-            System.out.println("Задача " + (i + 1));
-            System.out.print("Въведете изисквания CPU ядра: ");
-            taskCPUs[i] = scanner.nextInt();
-            System.out.print("Въведете изисквания RAM (GB): ");
-            taskRAM[i] = scanner.nextInt();
-            System.out.print("Въведете изисквания диск пространство (GB): ");
-            taskDisk[i] = scanner.nextInt();
-            System.out.print("Въведете номера на зависимата задача (0 ако няма): ");
-            taskDependencies[i] = scanner.nextInt();
-        }
-
-        // Създаване на солвера
+        // Initialize a solver
         MPSolver solver = MPSolver.createSolver("CBC");
         if (solver == null) {
             System.out.println("Could not create solver GLOP");
             return;
         }
+        int numTasks = data.getTasks().length;
+        int numServers = data.getServers().length;
 
-        // Дефиниране на променливите
+        // Define the vars
         MPVariable[][] taskOnServer = new MPVariable[numTasks][numServers];
         for (int i = 0; i < numTasks; i++) {
             for (int j = 0; j < numServers; j++) {
@@ -68,31 +34,37 @@ public class TaskDistribution {
             }
         }
 
-        // Дефиниране на ограниченията
+        // constraints
         for (int i = 0; i < numServers; i++) {
-            MPConstraint cpuConstraint = solver.makeConstraint(0, serverCPUs[i], "CPU_Server" + (i + 1));
-            MPConstraint ramConstraint = solver.makeConstraint(0, serverRAM[i], "RAM_Server" + (i + 1));
-            MPConstraint diskConstraint = solver.makeConstraint(0, serverDisk[i], "Disk_Server" + (i + 1));
+            Server server = data.getServers()[i];
+            MPConstraint cpuConstraint = solver.makeConstraint(0, server.getVCPUs(), "CPU_Server" + (i + 1));
+            MPConstraint ramConstraint = solver.makeConstraint(0, server.getRam(), "RAM_Server" + (i + 1));
+            MPConstraint diskConstraint = solver.makeConstraint(0, server.getDisk(), "Disk_Server" + (i + 1));
 
             for (int j = 0; j < numTasks; j++) {
-                cpuConstraint.setCoefficient(taskOnServer[j][i], taskCPUs[j]);
-                ramConstraint.setCoefficient(taskOnServer[j][i], taskRAM[j]);
-                diskConstraint.setCoefficient(taskOnServer[j][i], taskDisk[j]);
+                Task task = data.getTasks()[j];
+                cpuConstraint.setCoefficient(taskOnServer[j][i], task.getRequiredVCPUs());
+                ramConstraint.setCoefficient(taskOnServer[j][i],task.getRequiredRam());
+                diskConstraint.setCoefficient(taskOnServer[j][i], task.getRequiredDisk());
             }
         }
 
-        // Ограничения за зависимостта между задачите
+        // dependenices
         for (int i = 0; i < numTasks; i++) {
-            if (taskDependencies[i] > 0) {
-                MPConstraint dependencyConstraint = solver.makeConstraint(0, 0, "Dependency" + (i + 1));
-                for (int j = 0; j < numServers; j++) {
-                    dependencyConstraint.setCoefficient(taskOnServer[taskDependencies[i] - 1][j], 1);
-                    dependencyConstraint.setCoefficient(taskOnServer[i][j], -1);
+            Task task = data.getTasks()[i];
+            if (task.getDependencyType() == DependencyType.SEQUENTIAL) {
+                for (int dependencyId : task.getDependsOnTaskIds()) {
+                    MPConstraint sequentialConstraint = solver.makeConstraint(0, 0, "Sequential" + (i + 1) + "_" + dependencyId);
+                    for (int j = 0; j < numServers; j++) {
+                        sequentialConstraint.setCoefficient(taskOnServer[dependencyId - 1][j], 1);
+                        sequentialConstraint.setCoefficient(taskOnServer[i][j], -1);
+                    }
                 }
             }
         }
 
-        // Ограничения, че всяка задача трябва да бъде разпределена точно на един сървър
+
+        // validate that every task is distributed to server
         for (int i = 0; i < numTasks; i++) {
             MPConstraint taskConstraint = solver.makeConstraint(1, 1, "Task" + (i + 1));
             for (int j = 0; j < numServers; j++) {
@@ -100,7 +72,7 @@ public class TaskDistribution {
             }
         }
 
-        // Целева функция: Минимизиране на общото време за изпълнение на задачите
+        // target function
         MPObjective objective = solver.objective();
         for (int i = 0; i < numTasks; i++) {
             for (int j = 0; j < numServers; j++) {
@@ -108,10 +80,10 @@ public class TaskDistribution {
             }
         }
 
-        // Решаване на задачата
+        // solve the distribution
         solver.solve();
 
-        // Отпечатване на резултатите
+        // print the results
         for (int i = 0; i < numTasks; i++) {
             for (int j = 0; j < numServers; j++) {
                 if (taskOnServer[i][j].solutionValue() == 1) {
